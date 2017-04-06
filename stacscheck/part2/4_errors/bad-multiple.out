@@ -1,0 +1,3 @@
+Read failed: invalidinputfilename.txt
+Write failed: /illegal/output/filename.txt
+Execute failed: ./invalidprogramname

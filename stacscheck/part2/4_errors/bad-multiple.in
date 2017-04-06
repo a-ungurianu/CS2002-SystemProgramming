@@ -1,0 +1,3 @@
+/bin/cat < invalidinputfilename.txt
+/bin/cat > /illegal/output/filename.txt
+./invalidprogramname

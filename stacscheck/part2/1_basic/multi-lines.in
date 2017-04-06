@@ -1,0 +1,3 @@
+./print_args.sh a
+./print_args.sh b
+./print_args.sh c
