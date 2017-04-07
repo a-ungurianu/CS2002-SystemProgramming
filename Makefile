@@ -13,13 +13,10 @@ ${OBJ_DIR}/%.o : ${SRC_DIR}/%.c
 runcmds : ${OBJ_DIR}/runcmds.o
 	${CC} ${LDFLAGS} $^ -o $@
 
-shellparse : ${OBJ_DIR}/shellparse.o
-	${CC} ${LDFLAGS} $^ -o $@
-
-shellsplit : ${OBJ_DIR}/shellparse.o
+shellsplit : ${OBJ_DIR}/shellsplit.o ${OBJ_DIR}/parse.o
 	${CC} ${LDFLAGS} $^ -o $@
 
 
 clean :
 	-rm -r ${OBJ_DIR}
-	-rm runcmds shellparse
+	-rm runcmds shellsplit
