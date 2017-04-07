@@ -16,6 +16,10 @@ runcmds : ${OBJ_DIR}/runcmds.o
 shellparse : ${OBJ_DIR}/shellparse.o
 	${CC} ${LDFLAGS} $^ -o $@
 
+shellsplit : ${OBJ_DIR}/shellparse.o
+	${CC} ${LDFLAGS} $^ -o $@
+
+
 clean :
 	-rm -r ${OBJ_DIR}
 	-rm runcmds shellparse
