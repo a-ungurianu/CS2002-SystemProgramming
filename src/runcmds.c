@@ -14,34 +14,41 @@ int main() {
   size_t bufferSize = 1024;
   char input[1025];
 
+  int myStdinFd = dup(0);
+  int myStdoutFd = dup(1);
+
+  FILE* myStdin = fdopen(myStdinFd, "r");
+  FILE* myStdout = fdopen(myStdoutFd, "w");
+
   while(true) {
-    char* result = fgets(input, bufferSize, stdin);
+    char* result = fgets(input, bufferSize, myStdin);
     if(result == NULL) break;
 
-    printf("Command: %s", input);
     token_list tokens = tokenize(input);
     size_t idx = 0;
     command_t *command = parseCommand(tokens, &idx);
-
-    int stdinFDCopy = dup(0);
-    int stdoutFDCopy = dup(1);
-
     if(command->input != NULL) {
       close(0);
-      open(command->input, O_RDONLY);
+      if(open(command->input, O_RDONLY) != 0){
+        fprintf(myStdout, "Read failed: %s\n", command->input);
+        continue;
+      }
     }
 
     if(command->output != NULL) {
       close(1);
-      open(command->output, O_WRONLY);
+      if(open(command->output, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
+        fprintf(myStdout, "Write failed: %s\n", command->output);
+        continue;
+      }
     }
 
     pid_t pid = fork();
     if(pid != 0) {
       int status;
       wait(&status);
-      dup2(stdinFDCopy, 0);
-      dup2(stdoutFDCopy, 1);
+      dup2(myStdinFd, 0);
+      dup2(myStdoutFd, 1);
     }
     else {
       // In fork
@@ -49,7 +56,8 @@ int main() {
       arguments[0] = command->program;
       memcpy(&arguments[1], command->arguments.tokens, (command->arguments.noTokens+1) * sizeof(char*));
       if(execv(command->program, arguments) < 0) {
-        printf("Execute failed: %s\n", command->program);
+        fprintf(myStdout, "Execute failed: %s\n", command->program);
+        exit(1);
       }
     }
 
