@@ -10,7 +10,7 @@ ${OBJ_DIR}/%.o : ${SRC_DIR}/%.c
 	${CC} ${CFLAGS} -c $^ -o $@
 
 
-runcmds : ${OBJ_DIR}/runcmds.o
+runcmds : ${OBJ_DIR}/runcmds.o ${OBJ_DIR}/parse.o
 	${CC} ${LDFLAGS} $^ -o $@
 
 shellsplit : ${OBJ_DIR}/shellsplit.o ${OBJ_DIR}/parse.o
