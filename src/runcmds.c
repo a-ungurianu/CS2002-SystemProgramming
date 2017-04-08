@@ -12,7 +12,7 @@
 
 int main() {
   size_t bufferSize = 1024;
-  char input[1025];
+  char input[bufferSize];
 
   int myStdinFd = dup(0);
   int myStdoutFd = dup(1);
