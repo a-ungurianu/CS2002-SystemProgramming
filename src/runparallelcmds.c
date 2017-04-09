@@ -20,26 +20,19 @@ int main() {
   FILE* myStdin = fdopen(myStdinFd, "r");
   FILE* myStdout = fdopen(myStdoutFd, "w");
 
-  size_t cmdCount = 0;
-
+  size_t noProcesses = 3;
+  size_t processesRunning = 0;
   while(true) {
-    cmdCount += 1;
     char* result = fgets(input, bufferSize, myStdin);
     if(result == NULL) break;
 
     token_list tokens = tokenize(input);
-
-    if(tokens.noTokens == 0) {
-      continue;
-    }
-
     size_t idx = 0;
     command_t *command = parseCommand(tokens, &idx);
     if(command->input != NULL) {
       close(0);
       if(open(command->input, O_RDONLY) != 0){
         fprintf(myStdout, "Read failed: %s\n", command->input);
-        fflush(myStdout);
         continue;
       }
     }
@@ -48,15 +41,22 @@ int main() {
       close(1);
       if(open(command->output, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
         fprintf(myStdout, "Write failed: %s\n", command->output);
-        fflush(myStdout);
         continue;
       }
     }
 
-    pid_t childPid = fork();
-    if(childPid != 0) {
-      int status;
-      wait(&status);
+    processesRunning += 1;
+    fprintf(myStdout, "Number of processes running: %d\n", processesRunning);
+    fflush(myStdout);
+    pid_t pid = fork();
+    if(pid != 0) {
+      if(processesRunning > noProcesses) {
+        fprintf(myStdout, "Waiting for one of the processes!\n");
+        fflush(myStdout);
+        int status;
+        wait(&status);
+        processesRunning -= 1;
+      }
       dup2(myStdinFd, 0);
       dup2(myStdoutFd, 1);
     }
@@ -70,6 +70,12 @@ int main() {
         exit(1);
       }
     }
+
+  }
+
+  int status;
+  while(wait(&status) != -1) {
+    fprintf(myStdout, "Collecting zombie ");
   }
 
   return 0;
