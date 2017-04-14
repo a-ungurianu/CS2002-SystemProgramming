@@ -31,6 +31,7 @@ int main() {
       close(0);
       if(open(command->input, O_RDONLY) != 0){
         fprintf(myStdout, "Read failed: %s\n", command->input);
+        fflush(myStdout);
         continue;
       }
     }
@@ -39,6 +40,7 @@ int main() {
       close(1);
       if(open(command->output, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
         fprintf(myStdout, "Write failed: %s\n", command->output);
+        fflush(myStdout);
         continue;
       }
     }
