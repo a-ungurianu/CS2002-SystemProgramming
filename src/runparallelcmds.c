@@ -65,7 +65,7 @@ int main(int argc, char* argv[]) {
       char name[100];
       tempFileCount+=1;
       snprintf(name, 100, "%s%zu",tempFileRoot, tempFileCount);
-      int tempFd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR); 
+      int tempFd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
       if( tempFd != 1) {
         fprintf(myStdout, "Temp write failed: %s With code: %d", name, tempFd);
         fflush(myStdout);
@@ -76,7 +76,7 @@ int main(int argc, char* argv[]) {
     processesRunning += 1;
     pid_t pid = fork();
     if(pid != 0) {
-      if(processesRunning > noProcesses) {
+      if(processesRunning > noProcesses + 1) {
         int status;
         wait(&status);
         processesRunning -= 1;
@@ -108,7 +108,7 @@ int main(int argc, char* argv[]) {
 
     char name[100];
     snprintf(name, 100, "%s%zu",tempFileRoot, i);
-    
+
     int tFd = open(name, O_RDONLY);
 
     int readBytes;
