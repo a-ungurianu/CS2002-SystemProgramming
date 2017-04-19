@@ -10,7 +10,7 @@ ${OBJ_DIR}/%.o : ${SRC_DIR}/%.c
 	${CC} ${CFLAGS} -c $^ -o $@
 
 
-runcmds : ${OBJ_DIR}/runcmds.o ${OBJ_DIR}/parse.o
+runcmds : ${OBJ_DIR}/runparallelcmds.o ${OBJ_DIR}/parse.o
 	${CC} ${LDFLAGS} $^ -o $@
 
 runparallelcmds : ${OBJ_DIR}/runparallelcmds.o ${OBJ_DIR}/parse.o
