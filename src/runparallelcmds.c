@@ -41,58 +41,67 @@ int main(int argc, char* argv[]) {
 
     token_list tokens = tokenize(input);
     size_t idx = 0;
-    command_t *command = parseCommand(tokens, &idx);
-    if(command->input != NULL) {
-      close(0);
-      if(open(command->input, O_RDONLY) != 0){
-        fprintf(myStdout, "Read failed: %s\n", command->input);
-        fflush(myStdout);
-        continue;
+    while(idx < tokens.noTokens) {
+      command_t *command = parseCommand(tokens, &idx);
+      if(command->input != NULL) {
+        close(0);
+        if(open(command->input, O_RDONLY) != 0){
+          fprintf(myStdout, "Read failed: %s\n", command->input);
+          fflush(myStdout);
+          continue;
+        }
       }
-    }
 
-    if(command->output != NULL) {
-      close(1);
-      if(open(command->output, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
+      if(command->output != NULL) {
+        close(1);
+        if(open(command->output, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
+          dup2(myStdinFd, 0);
+          fprintf(myStdout, "Write failed: %s\n", command->output);
+          fflush(myStdout);
+          continue;
+        }
+      }
+      else {
+        close(1);
+        char name[100];
+        tempFileCount+=1;
+        snprintf(name, 100, "%s%zu",tempFileRoot, tempFileCount);
+        int tempFd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
+        if( tempFd != 1) {
+          fprintf(myStdout, "Temp write failed: %s With code: %d", name, tempFd);
+          fflush(myStdout);
+          continue;
+        }
+      }
+
+      processesRunning += 1;
+      pid_t pid = fork();
+      if(pid != 0) {
+        if(processesRunning > noProcesses + 1) {
+          int status;
+          wait(&status);
+          processesRunning -= 1;
+        }
         dup2(myStdinFd, 0);
-        fprintf(myStdout, "Write failed: %s\n", command->output);
-        fflush(myStdout);
-        continue;
+        dup2(myStdoutFd, 1);
       }
-    }
-    else {
-      close(1);
-      char name[100];
-      tempFileCount+=1;
-      snprintf(name, 100, "%s%zu",tempFileRoot, tempFileCount);
-      int tempFd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-      if( tempFd != 1) {
-        fprintf(myStdout, "Temp write failed: %s With code: %d", name, tempFd);
-        fflush(myStdout);
-        continue;
+      else {
+        // In fork
+        char* arguments[100];
+        arguments[0] = command->program;
+        memcpy(&arguments[1], command->arguments.tokens, (command->arguments.noTokens+1) * sizeof(char*));
+        if(execvp(command->program, arguments) < 0) {
+          fprintf(myStdout, "Execute failed: %s\n", command->program);
+          fflush(myStdout);
+          exit(1);
+        }
       }
-    }
 
-    processesRunning += 1;
-    pid_t pid = fork();
-    if(pid != 0) {
-      if(processesRunning > noProcesses + 1) {
-        int status;
-        wait(&status);
-        processesRunning -= 1;
+      if(idx < tokens.noTokens && strcmp(";",tokens.tokens[idx]) != 0) {
+        break;
       }
-      dup2(myStdinFd, 0);
-      dup2(myStdoutFd, 1);
-    }
-    else {
-      // In fork
-      char* arguments[100];
-      arguments[0] = command->program;
-      memcpy(&arguments[1], command->arguments.tokens, (command->arguments.noTokens+1) * sizeof(char*));
-      if(execv(command->program, arguments) < 0) {
-        fprintf(myStdout, "Execute failed: %s\n", command->program);
-        fflush(myStdout);
-        exit(1);
+      else {
+        idx += 1;
       }
     }
 

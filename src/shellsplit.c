@@ -16,32 +16,40 @@ int main() {
 
   size_t idx = 0;
 
-  command_t *command = parseCommand(tokens, &idx);
 
-  printf("Run program \"%s\"", command->program);
+  while(idx < tokens.noTokens) {
+    command_t *command = parseCommand(tokens, &idx);
 
-  if(command->arguments.noTokens > 0) {
-    printf(" with argument");
-    if(command->arguments.noTokens > 1) {
-      putchar('s');
+    printf("Run program \"%s\"", command->program);
+
+    if(command->arguments.noTokens > 0) {
+      printf(" with argument");
+      if(command->arguments.noTokens > 1) {
+        putchar('s');
+      }
+      printf(" \"%s\"", command->arguments.tokens[0]);
+
+      for(size_t i = 1; i < command->arguments.noTokens; ++i) {
+        printf(" and \"%s\"", command->arguments.tokens[i]);
+      }
     }
-    printf(" \"%s\"", command->arguments.tokens[0]);
+    putchar('.');
 
-    for(size_t i = 1; i < command->arguments.noTokens; ++i) {
-      printf(" and \"%s\"", command->arguments.tokens[i]);
+    if(command->input != NULL) {
+      printf(" Read the input from file \"%s\".", command->input);
+    }
+
+    if(command->output != NULL) {
+      printf(" Write the output to file \"%s\".", command->output);
+    }
+    putchar('\n');
+    if(idx < tokens.noTokens && strcmp(";", tokens.tokens[idx]) != 0) {
+      break;
+    }
+    else {
+      idx += 1;
     }
   }
-  putchar('.');
-
-  if(command->input != NULL) {
-    printf(" Read the input from file \"%s\".", command->input);
-  }
-
-  if(command->output != NULL) {
-    printf(" Write the output to file \"%s\".", command->output);
-  }
-
-
 
   return 0;
 }

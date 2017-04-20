@@ -4,8 +4,14 @@
 #include <stdlib.h>
 #include <string.h>
 
+static const char* COMMAND_TERMINATORS[5] = {";", "&&", "&" , "||", "|"};
+static const char* INPUT_REDIRECT = "<";
+static const char* OUTPUT_REDIRECT = ">";
+static const char* ARG_SEPARATORS = " \t";
+static const char* INPUT_TERMINATORS = "\n\0";
+
 char *parseInputRedirect(token_list tokens, size_t *tokIdx) {
-  if(strcmp(tokens.tokens[*tokIdx], "<") == 0) {
+  if(strcmp(tokens.tokens[*tokIdx], INPUT_REDIRECT) == 0) {
     *tokIdx += 1;
     return tokens.tokens[(*tokIdx)++];
   }
@@ -13,11 +19,18 @@ char *parseInputRedirect(token_list tokens, size_t *tokIdx) {
 }
 
 char *parseOutputRedirect(token_list tokens, size_t *tokIdx) {
-  if(strcmp(tokens.tokens[*tokIdx], ">") == 0) {
+  if(strcmp(tokens.tokens[*tokIdx], OUTPUT_REDIRECT) == 0) {
     *tokIdx += 1;
     return tokens.tokens[(*tokIdx)++];
   }
   return NULL;
+}
+
+bool isTerminatorToken(char* token) {
+  for(size_t i = 0; i < 5; ++i) {
+    if(strcmp(COMMAND_TERMINATORS[i], token) == 0) return true;
+  }
+  return false;
 }
 
 command_t *parseCommand(token_list tokens, size_t *tokIdx) {
@@ -29,7 +42,7 @@ command_t *parseCommand(token_list tokens, size_t *tokIdx) {
   char* args[100];
   size_t argIdx = 0;
 
-  while(*tokIdx < tokens.noTokens) {
+  while(*tokIdx < tokens.noTokens && !isTerminatorToken(tokens.tokens[*tokIdx])) {
     char * res = parseInputRedirect(tokens, tokIdx);
     if(res) {
       command->input = res;
@@ -54,6 +67,12 @@ command_t *parseCommand(token_list tokens, size_t *tokIdx) {
   return command;
 }
 
+
+void skipWhitespace(char* line, size_t *curIdx) {
+  while(!strchr(INPUT_TERMINATORS, line[*curIdx]) && strchr(ARG_SEPARATORS, line[*curIdx]))
+    *curIdx += 1;
+}
+
 token_list tokenize(char* line) {
   bool inQuotes = false;
   size_t curIdx = 0;
@@ -64,8 +83,24 @@ token_list tokenize(char* line) {
   char curSeg[1024];
   size_t segIdx = 0;
 
-  while(line[curIdx] != '\0' && line[curIdx] != '\n') {
-    while((inQuotes || line[curIdx] != ' ') && line[curIdx] != '\0' && line[curIdx] != '\n') {
+  while(!strchr(INPUT_TERMINATORS, line[curIdx])) {
+    while((inQuotes || !strchr(ARG_SEPARATORS, line[curIdx])) && !strchr(INPUT_TERMINATORS, line[curIdx])) {
+      if(!inQuotes) {
+        for(size_t i = 0; i < 5; ++i) {
+          if(strcmp(strndup(&line[curIdx], strlen(COMMAND_TERMINATORS[i])),COMMAND_TERMINATORS[i]) == 0) {
+            if(segIdx != 0) {
+              curSeg[segIdx] = '\0';
+              args[argIdx] = malloc((strlen(curSeg) + 1) * sizeof(char));
+              strcpy(args[argIdx++], curSeg);
+            }
+            args[argIdx++] = strdup(COMMAND_TERMINATORS[i]);
+            curIdx += strlen(COMMAND_TERMINATORS[i]);
+            segIdx = 0;
+            skipWhitespace(line, &curIdx);
+          }
+        }
+      }
+
       if(line[curIdx] == '"') {
         inQuotes = !inQuotes;
         curIdx += 1;
@@ -74,11 +109,13 @@ token_list tokenize(char* line) {
         curSeg[segIdx++] = line[curIdx++];
       }
     }
-    curSeg[segIdx] = '\0';
-    args[argIdx] = malloc((strlen(curSeg) + 1) * sizeof(char));
-    strcpy(args[argIdx], curSeg);
-    segIdx = 0;
-    argIdx++;
+    if(segIdx != 0) {
+      curSeg[segIdx] = '\0';
+      args[argIdx] = malloc((strlen(curSeg) + 1) * sizeof(char));
+      strcpy(args[argIdx], curSeg);
+      segIdx = 0;
+      argIdx++;
+    }
     curIdx++;
   }
 
