@@ -77,11 +77,14 @@ int main(int argc, char* argv[]) {
       processesRunning += 1;
       pid_t pid = fork();
       if(pid != 0) {
+
         if(processesRunning > noProcesses + 1) {
+          // We deplenished our process quota; waiting for one of the other ones to finish
           int status;
           wait(&status);
           processesRunning -= 1;
         }
+        // Restore standard I/O
         dup2(myStdinFd, 0);
         dup2(myStdoutFd, 1);
       }

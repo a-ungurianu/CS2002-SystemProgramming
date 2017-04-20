@@ -1,4 +1,4 @@
-CC = clang
+CC = gcc
 LDFLAGS = -g
 CFLAGS = -std=c99 -Wall -Wextra -g
 
