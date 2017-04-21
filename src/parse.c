@@ -26,6 +26,9 @@ char *parseOutputRedirect(token_list tokens, size_t *tokIdx) {
   return NULL;
 }
 
+/*
+  Is this a token that terminates a command
+ */
 bool isTerminatorToken(char* token) {
   for(size_t i = 0; i < 5; ++i) {
     if(strcmp(COMMAND_TERMINATORS[i], token) == 0) return true;
@@ -33,6 +36,10 @@ bool isTerminatorToken(char* token) {
   return false;
 }
 
+
+/*
+  Parse the first command from the given list of tokens
+ */
 command_t *parseCommand(token_list tokens, size_t *tokIdx) {
   command_t *command = malloc(sizeof(command_t));
   command->input = NULL;
@@ -67,12 +74,18 @@ command_t *parseCommand(token_list tokens, size_t *tokIdx) {
   return command;
 }
 
-
+/*
+  Skip allowed whitespace between command arguments.
+ */
 void skipWhitespace(char* line, size_t *curIdx) {
   while(!strchr(INPUT_TERMINATORS, line[*curIdx]) && strchr(ARG_SEPARATORS, line[*curIdx]))
     *curIdx += 1;
 }
 
+
+/*
+  Tokenize the input into a list of words that can be parsed by the parsing functions.
+ */
 token_list tokenize(char* line) {
   bool inQuotes = false;
   size_t curIdx = 0;
@@ -90,8 +103,7 @@ token_list tokenize(char* line) {
           if(strcmp(strndup(&line[curIdx], strlen(COMMAND_TERMINATORS[i])),COMMAND_TERMINATORS[i]) == 0) {
             if(segIdx != 0) {
               curSeg[segIdx] = '\0';
-              args[argIdx] = malloc((strlen(curSeg) + 1) * sizeof(char));
-              strcpy(args[argIdx++], curSeg);
+              args[argIdx] = strdup(curSeg);
             }
             args[argIdx++] = strdup(COMMAND_TERMINATORS[i]);
             curIdx += strlen(COMMAND_TERMINATORS[i]);
@@ -119,6 +131,7 @@ token_list tokenize(char* line) {
     curIdx++;
   }
 
+  // Move the parsed tokens from a static array to a heap allocated array
   char** res = malloc((argIdx + 1) * sizeof(char*));
   memcpy(res, args, argIdx * sizeof(char*));
 
@@ -126,4 +139,3 @@ token_list tokenize(char* line) {
 
   return (token_list){res, argIdx};
 }
-

@@ -12,15 +12,52 @@
 #include "parse.h"
 
 
+/*
+  Redirect standard output to the file with the given name
+ */
+bool redirectStdoutToFile(char *fileName) {
+  close(1);
+  if(open(fileName, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
+    return false;
+  }
+  return true;
+}
+
+/*
+  Redirect standard input to the file with the given name
+ */
+bool redirectStdinFromFile(char *fileName) {
+  close(0);
+  if(open(fileName, O_RDONLY) != 0) {
+    return false;
+  }
+  return true;
+}
+
+/*
+  Execute the given command, printing error messages on failure.
+ */
+void execCommand(command_t *command) {
+  char* arguments[100];
+  arguments[0] = command->program;
+  memcpy(&arguments[1], command->arguments.tokens, (command->arguments.noTokens+1) * sizeof(char*));
+  if(execvp(command->program, arguments) < 0) {
+    fprintf(stderr, "Execute failed: %s\n", command->program);
+    fflush(stderr);
+    exit(1);
+  }
+}
+
 int main(int argc, char* argv[]) {
-
-
   size_t bufferSize = 1024;
   char input[bufferSize];
 
+  // Saved standard input and standard output
   int myStdinFd = dup(0);
   int myStdoutFd = dup(1);
 
+  // Create file handlers from the saved file descriptors
+  // This allows us to use the I/O functions defined in stdio
   FILE* myStdin = fdopen(myStdinFd, "r");
   FILE* myStdout = fdopen(myStdoutFd, "w");
 
@@ -41,35 +78,35 @@ int main(int argc, char* argv[]) {
 
     token_list tokens = tokenize(input);
     size_t idx = 0;
+
     while(idx < tokens.noTokens) {
       command_t *command = parseCommand(tokens, &idx);
+
       if(command->input != NULL) {
-        close(0);
-        if(open(command->input, O_RDONLY) != 0){
-          fprintf(myStdout, "Read failed: %s\n", command->input);
-          fflush(myStdout);
+        if(!redirectStdinFromFile(command->input)){
+          dup2(myStdinFd, 0);
+          fprintf(stderr, "Read failed: %s\n", command->input);
+          fflush(stderr);
           continue;
         }
       }
 
       if(command->output != NULL) {
-        close(1);
-        if(open(command->output, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR) != 1) {
-          dup2(myStdinFd, 0);
-          fprintf(myStdout, "Write failed: %s\n", command->output);
-          fflush(myStdout);
+        if(!redirectStdoutToFile(command->output)) {
+          dup2(myStdoutFd, 1);
+          fprintf(stderr, "Write failed: %s\n", command->output);
+          fflush(stderr);
           continue;
         }
       }
       else {
-        close(1);
         char name[100];
         tempFileCount+=1;
         snprintf(name, 100, "%s%zu",tempFileRoot, tempFileCount);
-        int tempFd = open(name, O_WRONLY | O_CREAT | O_TRUNC, S_IRUSR | S_IWUSR);
-        if( tempFd != 1) {
-          fprintf(myStdout, "Temp write failed: %s With code: %d", name, tempFd);
-          fflush(myStdout);
+        if(!redirectStdoutToFile(name)) {
+          dup2(myStdoutFd, 1);
+          fprintf(stderr, "Temp write failed: %s\n", name);
+          fflush(stderr);
           continue;
         }
       }
@@ -77,7 +114,7 @@ int main(int argc, char* argv[]) {
       processesRunning += 1;
       pid_t pid = fork();
       if(pid != 0) {
-
+        // In parent
         if(processesRunning > noProcesses + 1) {
           // We deplenished our process quota; waiting for one of the other ones to finish
           int status;
@@ -90,14 +127,7 @@ int main(int argc, char* argv[]) {
       }
       else {
         // In fork
-        char* arguments[100];
-        arguments[0] = command->program;
-        memcpy(&arguments[1], command->arguments.tokens, (command->arguments.noTokens+1) * sizeof(char*));
-        if(execvp(command->program, arguments) < 0) {
-          fprintf(myStdout, "Execute failed: %s\n", command->program);
-          fflush(myStdout);
-          exit(1);
-        }
+        execCommand(command);
       }
 
       if(idx < tokens.noTokens && strcmp(";",tokens.tokens[idx]) != 0) {
@@ -116,7 +146,7 @@ int main(int argc, char* argv[]) {
   while(wait(&status) != -1);
 
   // Clean up files
-  for(int i = 1; i <= tempFileCount; ++i) {
+  for(size_t i = 1; i <= tempFileCount; ++i) {
 
     char name[100];
     snprintf(name, 100, "%s%zu",tempFileRoot, i);
